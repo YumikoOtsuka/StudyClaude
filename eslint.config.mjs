@@ -10,7 +10,8 @@ export default [
       sourceType: 'script', // バニラJS・CDN読み込みのためモジュールなし
       globals: {
         ...globals.browser,
-        Chart: 'readonly', // Chart.js (CDN)
+        Chart:      'readonly', // Chart.js (CDN)
+        BacklogAPI: 'readonly', // js/api/backlog.js
       },
     },
     rules: {
