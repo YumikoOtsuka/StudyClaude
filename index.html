@@ -202,6 +202,22 @@
 
           <div class="output-block">
             <div class="output-block-header">
+              <span class="output-block-title">🌿 ブランチ作成</span>
+              <button class="btn btn-secondary btn-sm" data-copy="#outCheckout">コピー</button>
+            </div>
+            <pre id="outCheckout"></pre>
+          </div>
+
+          <div class="output-block" id="outAddRemoteBlock" style="display:none">
+            <div class="output-block-header">
+              <span class="output-block-title">🔗 リモート追加</span>
+              <button class="btn btn-secondary btn-sm" data-copy="#outAddRemote">コピー</button>
+            </div>
+            <pre id="outAddRemote"></pre>
+          </div>
+
+          <div class="output-block">
+            <div class="output-block-header">
               <span class="output-block-title">🌿 ブランチ名</span>
               <button class="btn btn-secondary btn-sm" data-copy="#outBranch">コピー</button>
             </div>
@@ -469,6 +485,18 @@
           <select id="defaultProject">
             <option value="">— 設定後に読み込まれます —</option>
           </select>
+        </div>
+
+        <hr>
+
+        <div class="form-group">
+          <label>Backlog Git リポジトリ名</label>
+          <input type="text" id="backlogRepoName" placeholder="リポジトリ名（例: my-repo）">
+        </div>
+
+        <div class="form-group">
+          <label>Git リモート名</label>
+          <input type="text" id="backlogRemoteName" placeholder="origin">
         </div>
 
         <div class="btn-row">
