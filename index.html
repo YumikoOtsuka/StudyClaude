@@ -144,22 +144,24 @@
               <div class="form-group">
                 <label>優先度</label>
                 <select id="issuePriority">
-                  <option>普通</option>
-                  <option>高</option>
-                  <option>最高</option>
-                  <option>低</option>
-                  <option>最低</option>
+                  <option value="2">高</option>
+                  <option value="3" selected>中</option>
+                  <option value="4">低</option>
                 </select>
               </div>
               <div class="form-group">
                 <label>カテゴリ</label>
                 <select id="issueCategory">
                   <option value="">— カテゴリ —</option>
-                  <option>機能追加</option>
-                  <option>バグ修正</option>
-                  <option>調査</option>
                 </select>
               </div>
+            </div>
+
+            <div class="form-group">
+              <label>課題種別</label>
+              <select id="issueType">
+                <option value="">— プロジェクトを先に選択してください —</option>
+              </select>
             </div>
 
             <div class="btn-row">

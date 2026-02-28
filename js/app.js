@@ -284,11 +284,63 @@ Backlog課題の説明文に含めるため、業務的な観点で重要な情�
 });
 
 
-/* ===== Backlog 登録ボタン (mockup) ===== */
-document.getElementById('btnRegister')?.addEventListener('click', () => {
-  const title = document.getElementById('issueTitle').value.trim();
-  if (!title) { showToast('タイトルを入力してください'); return; }
-  showToast(`Backlog に課題を登録しました（モック）: ${title}`);
+/* ===== Backlog 登録ボタン ===== */
+document.getElementById('btnRegister')?.addEventListener('click', async () => {
+  const projectId   = document.getElementById('issueProject').value;
+  const summary     = document.getElementById('issueTitle').value.trim();
+  const issueTypeId = document.getElementById('issueType').value;
+
+  if (!projectId)   { showToast('プロジェクトを選択してください');  return; }
+  if (!summary)     { showToast('課題タイトルを入力してください');   return; }
+  if (!issueTypeId) { showToast('課題種別を選択してください');       return; }
+
+  const params = new URLSearchParams();
+  params.append('projectId',   projectId);
+  params.append('summary',     summary);
+  params.append('issueTypeId', issueTypeId);
+  params.append('priorityId',  document.getElementById('issuePriority').value || '3');
+
+  const description = document.getElementById('issueDesc').value;
+  if (description) { params.append('description', description); }
+
+  const dueDate = document.getElementById('issueDue').value;
+  if (dueDate) { params.append('dueDate', dueDate); }
+
+  const assigneeId = document.getElementById('issueAssignee').value;
+  if (assigneeId && !isNaN(parseInt(assigneeId, 10))) {
+    params.append('assigneeId', assigneeId);
+  }
+
+  const categoryId = document.getElementById('issueCategory').value;
+  if (categoryId && !isNaN(parseInt(categoryId, 10))) {
+    params.append('categoryId[]', categoryId);
+  }
+
+  const btn      = document.getElementById('btnRegister');
+  const origText = btn.textContent;
+  btn.disabled    = true;
+  btn.textContent = '⏳ 登録中...';
+
+  try {
+    const issue = await BacklogAPI.createIssue(params);
+    StorageAPI.recordBacklogCreated(issue.issueKey);
+    showToast(`✓ 課題 ${issue.issueKey} を登録しました`);
+
+    document.getElementById('issueTitle').value    = '';
+    document.getElementById('issueDesc').value     = '';
+    document.getElementById('issueProject').value  = '';
+    document.getElementById('issueAssignee').value = '';
+    document.getElementById('issueDue').value      = '';
+
+    uploadedImages.length = 0;
+    const previewList = document.getElementById('imagePreviewList');
+    if (previewList) { previewList.innerHTML = ''; }
+  } catch (err) {
+    showToast(`エラー: ${err.message}`);
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = origText;
+  }
 });
 
 
