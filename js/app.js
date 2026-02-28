@@ -210,6 +210,12 @@ function handleFiles(files) {
 }
 
 
+/* ===== Slack URL バリデーション ===== */
+function isValidSlackUrl(url) {
+  return /^https:\/\/[a-zA-Z0-9-]+\.slack\.com\/archives\/[A-Z0-9]+\/p[0-9]+/.test(url);
+}
+
+
 /* ===== AI 生成ボタン ===== */
 document.getElementById('btnGenerate')?.addEventListener('click', async () => {
   const slackText = document.getElementById('slackText').value.trim();
@@ -220,8 +226,15 @@ document.getElementById('btnGenerate')?.addEventListener('click', async () => {
   btn.disabled    = true;
   btn.textContent = '⏳ 生成中...';
 
-  const slackUrl     = document.getElementById('slackUrl').value.trim();
-  const slackSection = slackUrl ? `\n\n## 参照元 Slack\n${slackUrl}` : '';
+  const slackUrl = document.getElementById('slackUrl').value.trim();
+  let slackSection = '';
+  if (slackUrl) {
+    if (isValidSlackUrl(slackUrl)) {
+      slackSection = `\n\n## 参照元 Slack\n${slackUrl}`;
+    } else {
+      showToast('Slack URL の形式が正しくありません');
+    }
+  }
 
   const prompt = `あなたは業務管理のアシスタントです。
 以下の Slack 投稿内容から Backlog 課題を作成してください。
