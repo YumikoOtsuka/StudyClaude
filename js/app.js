@@ -96,13 +96,33 @@ document.querySelectorAll('[data-copy]').forEach(btn => {
 
 
 /* ===== Toast helper ===== */
-function showToast(msg) {
+// type: 'success' | 'error' | 'warning' | '' (default dark)
+function showToast(msg, type) {
   const area  = document.getElementById('toastArea');
   const toast = document.createElement('div');
-  toast.className = 'toast';
+  toast.className = 'toast' + (type ? ` toast-${type}` : '');
   toast.textContent = msg;
   area.appendChild(toast);
   setTimeout(() => toast.remove(), 2800);
+}
+
+/* ===== Button loading helper ===== */
+function setButtonLoading(btn, loading, loadingText) {
+  if (loading) {
+    btn.dataset.origText = btn.textContent;
+    btn.disabled    = true;
+    btn.textContent = loadingText || '⏳ 処理中...';
+  } else {
+    btn.disabled    = false;
+    btn.textContent = btn.dataset.origText || btn.textContent;
+  }
+}
+
+/* ===== Skeleton rows helper ===== */
+function skeletonRows(cols, count) {
+  const cell = `<td><span class="skeleton" style="display:block;height:14px;border-radius:3px;">&nbsp;</span></td>`;
+  const row  = `<tr>${cell.repeat(cols)}</tr>`;
+  return row.repeat(count || 3);
 }
 
 
@@ -119,7 +139,7 @@ function saveSettings() {
   if (projectSel && projectSel.value) {
     localStorage.setItem('defaultProject', projectSel.value);
   }
-  showToast('設定を保存しました');
+  showToast('設定を保存しました', 'success');
   loadBacklogProjects();
 }
 
@@ -219,7 +239,7 @@ async function loadProjectDetails(projectId) {
     populateSelect('issueType',     results[1], function (t) { return t.id; },  function (t) { return t.name; });
     populateSelect('issueCategory', results[2], function (c) { return c.id; },  function (c) { return c.name; });
   } catch (err) {
-    showToast('プロジェクト情報の取得に失敗しました: ' + err.message);
+    showToast('プロジェクト情報の取得に失敗しました: ' + err.message, 'error');
     ['issueAssignee', 'issueType', 'issueCategory'].forEach(function (id) {
       const el = document.getElementById(id);
       if (el) { el.innerHTML = '<option value="">— 取得失敗 —</option>'; }
@@ -241,14 +261,14 @@ document.getElementById('testConnection')?.addEventListener('click', async () =>
   const geminiKey = localStorage.getItem('geminiApiKey') || '';
   try {
     const projects = await BacklogAPI.getProjects();
-    showToast(`✓ Backlog 接続成功: ${projects.length} プロジェクト取得`);
+    showToast(`✓ Backlog 接続成功: ${projects.length} プロジェクト取得`, 'success');
   } catch (err) {
-    showToast(`✗ Backlog 接続エラー: ${err.message}`);
+    showToast(`✗ Backlog 接続エラー: ${err.message}`, 'error');
   }
   if (geminiKey) {
-    showToast('✓ Gemini API キー設定済み');
+    showToast('✓ Gemini API キー設定済み', 'success');
   } else {
-    showToast('✗ Gemini API キーが未設定です');
+    showToast('✗ Gemini API キーが未設定です', 'warning');
   }
 });
 
@@ -305,12 +325,10 @@ function isValidSlackUrl(url) {
 /* ===== AI 生成ボタン ===== */
 document.getElementById('btnGenerate')?.addEventListener('click', async () => {
   const slackText = document.getElementById('slackText').value.trim();
-  if (!slackText) { showToast('Slack テキストを入力してください'); return; }
+  if (!slackText) { showToast('Slack テキストを入力してください', 'warning'); return; }
 
-  const btn      = document.getElementById('btnGenerate');
-  const origText = btn.textContent;
-  btn.disabled    = true;
-  btn.textContent = '⏳ 生成中...';
+  const btn = document.getElementById('btnGenerate');
+  setButtonLoading(btn, true, '⏳ 生成中...');
 
   const slackUrl = document.getElementById('slackUrl').value.trim();
   let slackSection = '';
@@ -318,7 +336,7 @@ document.getElementById('btnGenerate')?.addEventListener('click', async () => {
     if (isValidSlackUrl(slackUrl)) {
       slackSection = `\n\n## 参照元 Slack\n${slackUrl}`;
     } else {
-      showToast('Slack URL の形式が正しくありません');
+      showToast('Slack URL の形式が正しくありません', 'warning');
     }
   }
 
@@ -360,12 +378,11 @@ Backlog課題の説明文に含めるため、業務的な観点で重要な情�
     document.getElementById('issueDesc').value  = description + slackSection;
 
     StorageAPI.recordSlackProcessed();
-    showToast('AI が課題を生成しました');
+    showToast('AI が課題を生成しました', 'success');
   } catch (err) {
-    showToast(`エラー: ${err.message}`);
+    showToast(`エラー: ${err.message}`, 'error');
   } finally {
-    btn.disabled    = false;
-    btn.textContent = origText;
+    setButtonLoading(btn, false);
   }
 });
 
@@ -376,9 +393,9 @@ document.getElementById('btnRegister')?.addEventListener('click', async () => {
   const summary     = document.getElementById('issueTitle').value.trim();
   const issueTypeId = document.getElementById('issueType').value;
 
-  if (!projectId)   { showToast('プロジェクトを選択してください');  return; }
-  if (!summary)     { showToast('課題タイトルを入力してください');   return; }
-  if (!issueTypeId) { showToast('課題種別を選択してください');       return; }
+  if (!projectId)   { showToast('プロジェクトを選択してください', 'warning');  return; }
+  if (!summary)     { showToast('課題タイトルを入力してください', 'warning');   return; }
+  if (!issueTypeId) { showToast('課題種別を選択してください', 'warning');       return; }
 
   const params = new URLSearchParams();
   params.append('projectId',   projectId);
@@ -402,15 +419,13 @@ document.getElementById('btnRegister')?.addEventListener('click', async () => {
     params.append('categoryId[]', categoryId);
   }
 
-  const btn      = document.getElementById('btnRegister');
-  const origText = btn.textContent;
-  btn.disabled    = true;
-  btn.textContent = '⏳ 登録中...';
+  const btn = document.getElementById('btnRegister');
+  setButtonLoading(btn, true, '⏳ 登録中...');
 
   try {
     const issue = await BacklogAPI.createIssue(params);
     StorageAPI.recordBacklogCreated(issue.issueKey);
-    showToast(`✓ 課題 ${issue.issueKey} を登録しました`);
+    showToast(`✓ 課題 ${issue.issueKey} を登録しました`, 'success');
 
     document.getElementById('issueTitle').value    = '';
     document.getElementById('issueDesc').value     = '';
@@ -422,10 +437,9 @@ document.getElementById('btnRegister')?.addEventListener('click', async () => {
     const previewList = document.getElementById('imagePreviewList');
     if (previewList) { previewList.innerHTML = ''; }
   } catch (err) {
-    showToast(`エラー: ${err.message}`);
+    showToast(`エラー: ${err.message}`, 'error');
   } finally {
-    btn.disabled    = false;
-    btn.textContent = origText;
+    setButtonLoading(btn, false);
   }
 });
 
@@ -454,12 +468,10 @@ function generateGitCommands(branchName) {
 /* ===== コーディング準備 生成ボタン ===== */
 document.getElementById('btnCodingGen')?.addEventListener('click', async () => {
   const issueKey = document.getElementById('issueKey').value.trim().toUpperCase();
-  if (!issueKey) { showToast('Backlog 課題番号を入力してください'); return; }
+  if (!issueKey) { showToast('Backlog 課題番号を入力してください', 'warning'); return; }
 
-  const btn      = document.getElementById('btnCodingGen');
-  const origText = btn.textContent;
-  btn.disabled    = true;
-  btn.textContent = '⏳ 生成中...';
+  const btn = document.getElementById('btnCodingGen');
+  setButtonLoading(btn, true, '⏳ 生成中...');
 
   try {
     const issue = await BacklogAPI.getIssue(issueKey);
@@ -514,12 +526,11 @@ document.getElementById('btnCodingGen')?.addEventListener('click', async () => {
     }
 
     document.getElementById('codingOutput').style.display = 'block';
-    showToast('コーディング準備情報を生成しました');
+    showToast('コーディング準備情報を生成しました', 'success');
   } catch (err) {
-    showToast(`エラー: ${err.message}`);
+    showToast(`エラー: ${err.message}`, 'error');
   } finally {
-    btn.disabled    = false;
-    btn.textContent = origText;
+    setButtonLoading(btn, false);
   }
 });
 
@@ -548,7 +559,7 @@ function downloadCSV(csv, filename) {
 }
 
 document.getElementById('btnExportDailyCsv')?.addEventListener('click', () => {
-  if (dailyIssueData.length === 0) { showToast('エクスポートするデータがありません'); return; }
+  if (dailyIssueData.length === 0) { showToast('エクスポートするデータがありません', 'warning'); return; }
 
   const headers = ['課題番号', 'タイトル', 'プロジェクト', '優先度', '担当者', '作成日時', 'ステータス'];
   const rows = dailyIssueData.map(function (issue) {
@@ -569,7 +580,7 @@ document.getElementById('btnExportDailyCsv')?.addEventListener('click', () => {
   const dateInput = document.getElementById('dailyDate');
   const dateStr   = dateInput ? dateInput.value : new Date().toISOString().slice(0, 10);
   downloadCSV(csv, `backlog_daily_${dateStr}.csv`);
-  showToast('CSV をダウンロードしました');
+  showToast('CSV をダウンロードしました', 'success');
 });
 
 
@@ -599,9 +610,7 @@ async function loadDailyData(dateStr) {
   if (slackEl) { slackEl.textContent = summary.slackProcessed; }
 
   const tbody = document.getElementById('dailyTableBody');
-  if (tbody) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">読み込み中...</td></tr>';
-  }
+  if (tbody) { tbody.innerHTML = skeletonRows(6); }
 
   const backlogEl    = document.getElementById('dailyBacklogCount');
   const incompleteEl = document.getElementById('dailyIncomplete');
@@ -782,9 +791,7 @@ async function loadMonthlyData(yearMonth) {
   if (!yearMonth) { return; }
 
   const tbody = document.getElementById('monthlyTableBody');
-  if (tbody) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">読み込み中...</td></tr>';
-  }
+  if (tbody) { tbody.innerHTML = skeletonRows(6); }
 
   // localStorage から Slack 処理件数
   const storageSummary = StorageAPI.getMonthlySummary(yearMonth);
