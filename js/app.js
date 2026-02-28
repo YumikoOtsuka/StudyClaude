@@ -210,21 +210,61 @@ function handleFiles(files) {
 }
 
 
-/* ===== AI 生成ボタン (mockup) ===== */
-document.getElementById('btnGenerate')?.addEventListener('click', () => {
+/* ===== AI 生成ボタン ===== */
+document.getElementById('btnGenerate')?.addEventListener('click', async () => {
   const slackText = document.getElementById('slackText').value.trim();
   if (!slackText) { showToast('Slack テキストを入力してください'); return; }
 
-  const slackUrl = document.getElementById('slackUrl').value.trim();
-  const slackSection = slackUrl
-    ? `\n\n## 参照元 Slack\n${slackUrl}`
-    : '';
+  const btn      = document.getElementById('btnGenerate');
+  const origText = btn.textContent;
+  btn.disabled    = true;
+  btn.textContent = '⏳ 生成中...';
 
-  // Mockup: fill form with dummy data
-  document.getElementById('issueTitle').value = '【依頼】' + slackText.slice(0, 40) + (slackText.length > 40 ? '…' : '');
-  document.getElementById('issueDesc').value  =
-    `## 依頼内容\n${slackText}\n\n## 対応方針\n（AI 生成後にここに入ります）\n\n## 完了条件\n- [ ] 対応完了${slackSection}`;
-  showToast('AI が課題を生成しました（モック）');
+  const slackUrl     = document.getElementById('slackUrl').value.trim();
+  const slackSection = slackUrl ? `\n\n## 参照元 Slack\n${slackUrl}` : '';
+
+  const prompt = `あなたは業務管理のアシスタントです。
+以下の Slack 投稿内容から Backlog 課題を作成してください。
+
+【Slack 投稿内容】
+${slackText}
+
+以下の JSON 形式で出力してください。余分なテキストや markdown コードブロックは不要です。
+{
+  "title": "課題タイトル（簡潔に、50文字以内）",
+  "description": "課題の詳細説明（箇条書きや見出しを使い、作業内容・背景・完了条件を含める）"
+}`;
+
+  try {
+    let rawText;
+    if (uploadedImages.length > 0) {
+      rawText = await GeminiAPI.generateWithImages(prompt, uploadedImages);
+    } else {
+      rawText = await GeminiAPI.generateText(prompt);
+    }
+
+    let title, description;
+    try {
+      const jsonStr = rawText.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '').trim();
+      const parsed  = JSON.parse(jsonStr);
+      title       = parsed.title       || slackText.slice(0, 50);
+      description = parsed.description || rawText;
+    } catch {
+      title       = slackText.slice(0, 50);
+      description = rawText;
+    }
+
+    document.getElementById('issueTitle').value = title;
+    document.getElementById('issueDesc').value  = description + slackSection;
+
+    StorageAPI.recordSlackProcessed();
+    showToast('AI が課題を生成しました');
+  } catch (err) {
+    showToast(`エラー: ${err.message}`);
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = origText;
+  }
 });
 
 

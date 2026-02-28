@@ -12,6 +12,8 @@ export default [
         ...globals.browser,
         Chart:      'readonly', // Chart.js (CDN)
         BacklogAPI: 'readonly', // js/api/backlog.js
+        GeminiAPI:  'readonly', // js/api/gemini.js
+        StorageAPI: 'readonly', // js/storage.js
       },
     },
     rules: {
