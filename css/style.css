@@ -419,6 +419,10 @@ hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
 
 @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
+.toast-success { background: var(--success); }
+.toast-error   { background: var(--danger); }
+.toast-warning { background: var(--warning); color: #1e293b; }
+
 /* ===== API Warning Banner ===== */
 .api-warning-banner {
   display: flex;
