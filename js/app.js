@@ -1,3 +1,7 @@
+/* ===== Module-level state ===== */
+let backlogProjects = []; // プロジェクト一覧キャッシュ（loadBacklogProjects で設定）
+
+
 /* ===== Navigation ===== */
 const NAV_ITEMS = document.querySelectorAll('.nav-item');
 const SCREENS  = document.querySelectorAll('.screen');
@@ -126,28 +130,106 @@ function loadSettings() {
 }
 
 async function loadBacklogProjects() {
-  const select = document.getElementById('defaultProject');
-  if (!select) { return; }
-
-  const spaceUrl  = localStorage.getItem('backlogSpace')  || '';
+  const spaceUrl   = localStorage.getItem('backlogSpace')  || '';
   const backlogKey = localStorage.getItem('backlogApiKey') || '';
   if (!spaceUrl || !backlogKey) { return; }
 
   try {
     const projects = await BacklogAPI.getProjects();
-    const savedId  = localStorage.getItem('defaultProject') || '';
-    select.innerHTML = '<option value="">選択してください</option>';
-    projects.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value       = p.id;
-      opt.textContent = `[${p.projectKey}] ${p.name}`;
-      select.appendChild(opt);
-    });
-    if (savedId) { select.value = savedId; }
+    backlogProjects = projects;
+
+    const savedId = localStorage.getItem('defaultProject') || '';
+
+    // 設定画面の #defaultProject を更新
+    const settingsSelect = document.getElementById('defaultProject');
+    if (settingsSelect) {
+      settingsSelect.innerHTML = '<option value="">選択してください</option>';
+      projects.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value       = p.id;
+        opt.textContent = `[${p.projectKey}] ${p.name}`;
+        settingsSelect.appendChild(opt);
+      });
+      if (savedId) { settingsSelect.value = savedId; }
+    }
+
+    // Slack→Backlog 画面の #issueProject を更新
+    const issueSelect = document.getElementById('issueProject');
+    if (issueSelect) {
+      issueSelect.innerHTML = '<option value="">— プロジェクトを選択 —</option>';
+      projects.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value       = p.id;
+        opt.textContent = `[${p.projectKey}] ${p.name}`;
+        issueSelect.appendChild(opt);
+      });
+      if (savedId) {
+        issueSelect.value = savedId;
+        loadProjectDetails(savedId);
+      }
+    }
   } catch (err) {
     console.log('Backlog プロジェクト取得失敗:', err.message);
   }
 }
+
+/* ===== Project details: assignee / issueType / category ===== */
+function populateSelect(id, items, getValue, getLabel) {
+  const select = document.getElementById(id);
+  if (!select) { return; }
+  select.innerHTML = '<option value="">— 未選択 —</option>';
+  items.forEach(function (item) {
+    const opt = document.createElement('option');
+    opt.value       = getValue(item);
+    opt.textContent = getLabel(item);
+    select.appendChild(opt);
+  });
+}
+
+function setSelectLoading(id, loading) {
+  const select = document.getElementById(id);
+  if (!select) { return; }
+  select.disabled = loading;
+  if (loading) { select.innerHTML = '<option>読み込み中...</option>'; }
+}
+
+async function loadProjectDetails(projectId) {
+  if (!projectId) { return; }
+
+  setSelectLoading('issueAssignee', true);
+  setSelectLoading('issueType',     true);
+  setSelectLoading('issueCategory', true);
+
+  try {
+    const project    = backlogProjects.find(function (p) { return String(p.id) === String(projectId); });
+    const projectKey = project ? project.projectKey : null;
+    if (!projectKey) { throw new Error('プロジェクトキーが見つかりません'); }
+
+    const results = await Promise.all([
+      BacklogAPI.getProjectUsers(projectKey),
+      BacklogAPI.getIssueTypes(projectId),
+      BacklogAPI.getCategories(projectId),
+    ]);
+
+    populateSelect('issueAssignee', results[0], function (u) { return u.id; },  function (u) { return u.name; });
+    populateSelect('issueType',     results[1], function (t) { return t.id; },  function (t) { return t.name; });
+    populateSelect('issueCategory', results[2], function (c) { return c.id; },  function (c) { return c.name; });
+  } catch (err) {
+    showToast('プロジェクト情報の取得に失敗しました: ' + err.message);
+    ['issueAssignee', 'issueType', 'issueCategory'].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) { el.innerHTML = '<option value="">— 取得失敗 —</option>'; }
+    });
+  } finally {
+    setSelectLoading('issueAssignee', false);
+    setSelectLoading('issueType',     false);
+    setSelectLoading('issueCategory', false);
+  }
+}
+
+document.getElementById('issueProject')?.addEventListener('change', function () {
+  loadProjectDetails(this.value);
+});
 
 document.getElementById('saveSettings')?.addEventListener('click', saveSettings);
 
