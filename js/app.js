@@ -236,12 +236,7 @@ ${slackText}
 }`;
 
   try {
-    let rawText;
-    if (uploadedImages.length > 0) {
-      rawText = await GeminiAPI.generateWithImages(prompt, uploadedImages);
-    } else {
-      rawText = await GeminiAPI.generateText(prompt);
-    }
+    const rawText = await GeminiAPI.generateText(prompt);
 
     let title, description;
     try {
@@ -252,6 +247,14 @@ ${slackText}
     } catch {
       title       = slackText.slice(0, 50);
       description = rawText;
+    }
+
+    if (uploadedImages.length > 0) {
+      const imagePrompt = `以下の画像はSlack投稿に添付されたスクリーンショット・資料です。
+画像の内容を日本語で詳しく説明してください。
+Backlog課題の説明文に含めるため、業務的な観点で重要な情報を中心に記述してください。`;
+      const imageDesc = await GeminiAPI.generateWithImages(imagePrompt, uploadedImages);
+      description += `\n\n## 添付画像の内容\n${imageDesc}`;
     }
 
     document.getElementById('issueTitle').value = title;
