@@ -253,24 +253,24 @@
       <div class="flex justify-between items-center mb-16">
         <div class="flex gap-8 items-center">
           <input type="date" id="dailyDate" style="max-width:160px">
-          <button class="btn btn-secondary btn-sm">更新</button>
+          <button class="btn btn-secondary btn-sm" id="btnRefreshDaily">更新</button>
         </div>
       </div>
 
       <div class="summary-cards">
         <div class="summary-card">
           <span class="sc-label">Slack 処理件数</span>
-          <span class="sc-value">7</span>
+          <span class="sc-value" id="dailySlackCount">—</span>
           <span class="sc-sub">本日（アプリ経由）</span>
         </div>
         <div class="summary-card">
           <span class="sc-label">Backlog 起票件数</span>
-          <span class="sc-value">5</span>
+          <span class="sc-value" id="dailyBacklogCount">—</span>
           <span class="sc-sub">本日（Backlog API）</span>
         </div>
         <div class="summary-card">
           <span class="sc-label">未完了課題</span>
-          <span class="sc-value" style="color:var(--warning)">3</span>
+          <span class="sc-value" style="color:var(--warning)" id="dailyIncomplete">—</span>
           <span class="sc-sub">本日起票分</span>
         </div>
       </div>
@@ -292,47 +292,8 @@
                 <th>作成日時</th>
               </tr>
             </thead>
-            <tbody>
-              <tr>
-                <td><span class="issue-key">BLG-201</span></td>
-                <td>ログイン画面のバリデーション修正</td>
-                <td>Project A</td>
-                <td><span class="badge badge-high">高</span></td>
-                <td>自分</td>
-                <td>09:12</td>
-              </tr>
-              <tr>
-                <td><span class="issue-key">BLG-202</span></td>
-                <td>CSV エクスポート機能の追加</td>
-                <td>Project B</td>
-                <td><span class="badge badge-mid">普通</span></td>
-                <td>自分</td>
-                <td>10:45</td>
-              </tr>
-              <tr>
-                <td><span class="issue-key">BLG-203</span></td>
-                <td>パスワードリセットメールの文言変更</td>
-                <td>Project A</td>
-                <td><span class="badge badge-low">低</span></td>
-                <td>自分</td>
-                <td>13:30</td>
-              </tr>
-              <tr>
-                <td><span class="issue-key">BLG-204</span></td>
-                <td>レポート集計ロジックの見直し</td>
-                <td>Project C</td>
-                <td><span class="badge badge-high">高</span></td>
-                <td>自分</td>
-                <td>14:08</td>
-              </tr>
-              <tr>
-                <td><span class="issue-key">BLG-205</span></td>
-                <td>ダッシュボードのレイアウト崩れ対応</td>
-                <td>Project A</td>
-                <td><span class="badge badge-mid">普通</span></td>
-                <td>自分</td>
-                <td>16:22</td>
-              </tr>
+            <tbody id="dailyTableBody">
+              <tr><td colspan="6" style="text-align:center;color:var(--text-muted)">読み込み中...</td></tr>
             </tbody>
           </table>
         </div>

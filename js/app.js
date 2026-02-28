@@ -26,8 +26,9 @@ function navigate(screenId) {
 
   showApiBanner(screenId);
 
-  // Draw charts when monthly screen becomes visible
-  if (screenId === 'monthly') {initMonthlyCharts();}
+  // Load dashboard data when switching screens
+  if (screenId === 'daily')   { initDailyDashboard(); }
+  if (screenId === 'monthly') { initMonthlyCharts(); }
 }
 
 function showApiBanner(screenId) {
@@ -551,6 +552,106 @@ document.getElementById('btnExportDailyCsv')?.addEventListener('click', () => {
   if (!csv) { showToast('エクスポートするデータがありません'); return; }
   downloadCSV(csv, `backlog_daily_${today}.csv`);
   showToast('CSV をダウンロードしました');
+});
+
+
+/* ===== Daily Dashboard ===== */
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function initDailyDashboard() {
+  const dateInput = document.getElementById('dailyDate');
+  if (!dateInput) { return; }
+  if (!dateInput.value) {
+    dateInput.value = new Date().toISOString().slice(0, 10);
+  }
+  loadDailyData(dateInput.value);
+}
+
+async function loadDailyData(dateStr) {
+  if (!dateStr) { return; }
+
+  const summary  = StorageAPI.getDailySummary(dateStr);
+  const slackEl  = document.getElementById('dailySlackCount');
+  if (slackEl) { slackEl.textContent = summary.slackProcessed; }
+
+  const tbody = document.getElementById('dailyTableBody');
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">読み込み中...</td></tr>';
+  }
+
+  const backlogEl    = document.getElementById('dailyBacklogCount');
+  const incompleteEl = document.getElementById('dailyIncomplete');
+
+  try {
+    const params = { createdSince: dateStr, createdUntil: dateStr, count: 100 };
+    const defaultProject = localStorage.getItem('defaultProject');
+    if (defaultProject) { params.projectId = [Number(defaultProject)]; }
+
+    const issues = await BacklogAPI.getIssues(params);
+
+    if (backlogEl)    { backlogEl.textContent    = issues.length; }
+    if (incompleteEl) {
+      const incomplete = issues.filter(function (i) {
+        return !(i.status && (i.status.name === '完了' || i.status.name === '処理済み'));
+      }).length;
+      incompleteEl.textContent = incomplete;
+    }
+
+    if (tbody) {
+      if (issues.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">データがありません</td></tr>';
+      } else {
+        tbody.innerHTML = issues.map(renderDailyIssueRow).join('');
+      }
+    }
+  } catch (err) {
+    if (backlogEl)    { backlogEl.textContent    = '—'; }
+    if (incompleteEl) { incompleteEl.textContent = '—'; }
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--danger)">${escapeHtml(err.message)}</td></tr>`;
+    }
+  }
+}
+
+function renderDailyIssueRow(issue) {
+  const spaceUrl = (localStorage.getItem('backlogSpace') || '').replace(/\/$/, '');
+  const issueUrl = spaceUrl ? `${spaceUrl}/browse/${issue.issueKey}` : '#';
+
+  const project     = backlogProjects.find(function (p) { return p.id === issue.projectId; });
+  const projectName = project ? project.name : String(issue.projectId || '');
+
+  const priorityName  = issue.priority ? issue.priority.name : '—';
+  const priorityClass = { '高': 'badge-high', '中': 'badge-mid', '低': 'badge-low' }[priorityName] || 'badge-mid';
+
+  const assigneeName = issue.assignee ? issue.assignee.name : '—';
+
+  const created = issue.created
+    ? new Date(issue.created).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+    : '—';
+
+  return `<tr>
+    <td><a href="${escapeHtml(issueUrl)}" target="_blank" class="issue-key">${escapeHtml(issue.issueKey)}</a></td>
+    <td>${escapeHtml(issue.summary)}</td>
+    <td>${escapeHtml(projectName)}</td>
+    <td><span class="badge ${priorityClass}">${escapeHtml(priorityName)}</span></td>
+    <td>${escapeHtml(assigneeName)}</td>
+    <td>${created}</td>
+  </tr>`;
+}
+
+document.getElementById('dailyDate')?.addEventListener('change', function () {
+  loadDailyData(this.value);
+});
+
+document.getElementById('btnRefreshDaily')?.addEventListener('click', function () {
+  const dateInput = document.getElementById('dailyDate');
+  if (dateInput) { loadDailyData(dateInput.value); }
 });
 
 
