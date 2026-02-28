@@ -426,23 +426,66 @@ document.getElementById('btnRegister')?.addEventListener('click', async () => {
 });
 
 
-/* ===== コーディング準備 生成ボタン (mockup) ===== */
-document.getElementById('btnCodingGen')?.addEventListener('click', () => {
-  const issueKey = document.getElementById('issueKey').value.trim();
+/* ===== コーディング準備 生成ボタン ===== */
+document.getElementById('btnCodingGen')?.addEventListener('click', async () => {
+  const issueKey = document.getElementById('issueKey').value.trim().toUpperCase();
   if (!issueKey) { showToast('Backlog 課題番号を入力してください'); return; }
 
-  const branchName = `feature/${issueKey.toLowerCase()}-description`;
-  const commitMsg  = `[${issueKey}] 機能実装: 説明をここに記入`;
-  const pushCmd    = `git push origin ${branchName}`;
+  const btn      = document.getElementById('btnCodingGen');
+  const origText = btn.textContent;
+  btn.disabled    = true;
+  btn.textContent = '⏳ 生成中...';
 
-  document.getElementById('outBranch').textContent  = branchName;
-  document.getElementById('outCommit').textContent  = commitMsg;
-  document.getElementById('outPush').textContent    = pushCmd;
-  document.getElementById('outTasks').textContent   =
-    `1. 仕様確認・設計\n2. DB マイグレーション（必要であれば）\n3. バックエンド実装\n4. フロントエンド実装\n5. 単体テスト作成\n6. コードレビュー依頼\n7. ${issueKey} ステータス更新`;
+  try {
+    const issue = await BacklogAPI.getIssue(issueKey);
 
-  document.getElementById('codingOutput').style.display = 'block';
-  showToast('コーディング準備情報を生成しました（モック）');
+    const prompt = `あなたはソフトウェアエンジニアのアシスタントです。
+以下の Backlog 課題に対するコーディング準備を手伝ってください。
+
+【課題キー】${issue.issueKey}
+【課題タイトル】${issue.summary}
+【課題説明】${issue.description || '（説明なし）'}
+
+以下の JSON 形式で出力してください（余分なテキスト・コードブロック不要）:
+{
+  "tasks": [
+    "タスク1の説明",
+    "タスク2の説明"
+  ],
+  "branchName": "feature/${issue.issueKey.toLowerCase()}-{summary-kebab-case}",
+  "commitMessage": "[${issue.issueKey}] {動詞}: {簡潔な説明}",
+  "notes": "実装上の注意点があれば記述（なければ空文字）"
+}`;
+
+    const rawText = await GeminiAPI.generateText(prompt);
+
+    let tasks, branchName, commitMessage;
+    try {
+      const jsonStr = rawText.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '').trim();
+      const parsed  = JSON.parse(jsonStr);
+      tasks         = Array.isArray(parsed.tasks) ? parsed.tasks : [rawText];
+      branchName    = parsed.branchName    || `feature/${issueKey.toLowerCase()}-task`;
+      commitMessage = parsed.commitMessage || `[${issueKey}] 機能実装`;
+    } catch {
+      tasks         = [rawText];
+      branchName    = `feature/${issueKey.toLowerCase()}-task`;
+      commitMessage = `[${issueKey}] 機能実装`;
+    }
+
+    const pushCmd = `git push origin ${branchName}`;
+
+    document.getElementById('outTasks').textContent  = tasks.map(function (t, i) { return `${i + 1}. ${t}`; }).join('\n');
+    document.getElementById('outBranch').textContent = branchName;
+    document.getElementById('outCommit').textContent = commitMessage;
+    document.getElementById('outPush').textContent   = pushCmd;
+    document.getElementById('codingOutput').style.display = 'block';
+    showToast('コーディング準備情報を生成しました');
+  } catch (err) {
+    showToast(`エラー: ${err.message}`);
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = origText;
+  }
 });
 
 
