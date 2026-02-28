@@ -675,54 +675,196 @@ document.getElementById('btnRefreshDaily')?.addEventListener('click', function (
 
 
 /* ===== Monthly charts (Chart.js) ===== */
-let chartsInitialized = false;
+let barChart      = null;
+let doughnutChart = null;
 
 function initMonthlyCharts() {
-  if (chartsInitialized) {return;}
-  chartsInitialized = true;
+  // 月ピッカーを当月に初期化（未設定時のみ）
+  const picker = document.getElementById('monthPicker');
+  if (picker && !picker.value) {
+    picker.value = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+  }
 
-  // Bar chart: daily issue count
-  const barCtx = document.getElementById('chartBar').getContext('2d');
-  new Chart(barCtx, {
-    type: 'bar',
-    data: {
-      labels: Array.from({ length: 28 }, (_, i) => `${i + 1}日`),
-      datasets: [{
-        label: 'Backlog 起票件数',
-        data: Array.from({ length: 28 }, () => Math.floor(Math.random() * 5)),
-        backgroundColor: '#2563eb99',
-        borderColor: '#2563eb',
-        borderWidth: 1,
-        borderRadius: 4,
-      }],
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: { beginAtZero: true, ticks: { stepSize: 1 } },
+  // Chart.js インスタンスを初回のみ生成
+  if (!barChart) {
+    const barCtx = document.getElementById('chartBar').getContext('2d');
+    barChart = new Chart(barCtx, {
+      type: 'bar',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Backlog 起票件数',
+          data: [],
+          backgroundColor: '#2563eb99',
+          borderColor: '#2563eb',
+          borderWidth: 1,
+          borderRadius: 4,
+        }],
       },
-    },
-  });
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+      },
+    });
+  }
 
-  // Pie chart: by project
-  const pieCtx = document.getElementById('chartPie').getContext('2d');
-  new Chart(pieCtx, {
-    type: 'doughnut',
-    data: {
-      labels: ['Project A', 'Project B', 'Project C'],
-      datasets: [{
-        data: [12, 7, 4],
-        backgroundColor: ['#2563eb', '#7c3aed', '#0891b2'],
-        borderWidth: 2,
-        borderColor: '#fff',
-      }],
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { position: 'bottom', labels: { font: { size: 11 } } },
+  if (!doughnutChart) {
+    const pieCtx = document.getElementById('chartPie').getContext('2d');
+    doughnutChart = new Chart(pieCtx, {
+      type: 'doughnut',
+      data: {
+        labels: [],
+        datasets: [{
+          data: [],
+          backgroundColor: ['#2563eb', '#7c3aed', '#0891b2', '#0d9488', '#d97706', '#dc2626'],
+          borderWidth: 2,
+          borderColor: '#fff',
+        }],
       },
-    },
-  });
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
+      },
+    });
+  }
+
+  if (picker && picker.value) {
+    loadMonthlyData(picker.value);
+  }
 }
+
+async function loadMonthlyIssues(yearMonth) {
+  const parts    = yearMonth.split('-').map(Number);
+  const firstDay = `${yearMonth}-01`;
+  const lastDay  = new Date(parts[0], parts[1], 0).toISOString().split('T')[0];
+
+  let allIssues = [];
+  let offset    = 0;
+  const count   = 100;
+
+  const defaultProject = localStorage.getItem('defaultProject');
+
+  while (true) {
+    const params = { createdSince: firstDay, createdUntil: lastDay, count: count, offset: offset };
+    if (defaultProject) { params.projectId = [Number(defaultProject)]; }
+
+    const batch = await BacklogAPI.getIssues(params);
+    allIssues = allIssues.concat(batch);
+    if (batch.length < count) { break; }
+    offset += count;
+  }
+  return allIssues;
+}
+
+function aggregateByDate(issues, yearMonth) {
+  const parts       = yearMonth.split('-').map(Number);
+  const daysInMonth = new Date(parts[0], parts[1], 0).getDate();
+  const counts      = Array(daysInMonth).fill(0);
+  issues.forEach(function (issue) {
+    const day = new Date(issue.created).getDate();
+    counts[day - 1]++;
+  });
+  return counts;
+}
+
+function aggregateByProject(issues) {
+  const map = {};
+  issues.forEach(function (issue) {
+    const project = backlogProjects.find(function (p) { return p.id === issue.projectId; });
+    const key     = project ? project.projectKey : String(issue.projectId || 'その他');
+    map[key]      = (map[key] || 0) + 1;
+  });
+  return map;
+}
+
+async function loadMonthlyData(yearMonth) {
+  if (!yearMonth) { return; }
+
+  const tbody = document.getElementById('monthlyTableBody');
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">読み込み中...</td></tr>';
+  }
+
+  // localStorage から Slack 処理件数
+  const storageSummary = StorageAPI.getMonthlySummary(yearMonth);
+  const slackEl        = document.getElementById('monthlySlackCount');
+  if (slackEl) { slackEl.textContent = storageSummary.totalSlack; }
+
+  try {
+    const issues = await loadMonthlyIssues(yearMonth);
+
+    // サマリーカード更新
+    const backlogEl = document.getElementById('monthlyBacklogCount');
+    if (backlogEl)  { backlogEl.textContent = issues.length; }
+
+    const doneCount = issues.filter(function (i) {
+      return i.status && (i.status.name === '完了' || i.status.name === '処理済み');
+    }).length;
+    const doneEl = document.getElementById('monthlyDoneCount');
+    if (doneEl) { doneEl.textContent = doneCount; }
+
+    // 棒グラフ更新
+    const parts       = yearMonth.split('-').map(Number);
+    const daysInMonth = new Date(parts[0], parts[1], 0).getDate();
+    const countsByDay = aggregateByDate(issues, yearMonth);
+    barChart.data.labels              = Array.from({ length: daysInMonth }, function (_, i) { return `${i + 1}日`; });
+    barChart.data.datasets[0].data    = countsByDay;
+    barChart.update();
+
+    // ドーナツグラフ更新
+    const byProject = aggregateByProject(issues);
+    doughnutChart.data.labels              = Object.keys(byProject);
+    doughnutChart.data.datasets[0].data    = Object.values(byProject);
+    doughnutChart.update();
+
+    // テーブル更新
+    if (tbody) {
+      if (issues.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">データがありません</td></tr>';
+      } else {
+        tbody.innerHTML = issues.map(renderMonthlyIssueRow).join('');
+      }
+    }
+  } catch (err) {
+    ['monthlyBacklogCount', 'monthlyDoneCount'].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = '—'; }
+    });
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--danger)">${escapeHtml(err.message)}</td></tr>`;
+    }
+  }
+}
+
+function renderMonthlyIssueRow(issue) {
+  const spaceUrl = (localStorage.getItem('backlogSpace') || '').replace(/\/$/, '');
+  const issueUrl = spaceUrl ? `${spaceUrl}/browse/${issue.issueKey}` : '#';
+
+  const project     = backlogProjects.find(function (p) { return p.id === issue.projectId; });
+  const projectName = project ? project.name : String(issue.projectId || '');
+
+  const priorityName  = issue.priority ? issue.priority.name : '—';
+  const priorityClass = { '高': 'badge-high', '中': 'badge-mid', '低': 'badge-low' }[priorityName] || 'badge-mid';
+
+  const assigneeName = issue.assignee ? issue.assignee.name : '—';
+  const created      = issue.created ? formatDateTime(issue.created) : '—';
+
+  return `<tr>
+    <td><a href="${escapeHtml(issueUrl)}" target="_blank" class="issue-key">${escapeHtml(issue.issueKey)}</a></td>
+    <td>${escapeHtml(issue.summary)}</td>
+    <td>${escapeHtml(projectName)}</td>
+    <td><span class="badge ${priorityClass}">${escapeHtml(priorityName)}</span></td>
+    <td>${escapeHtml(assigneeName)}</td>
+    <td>${escapeHtml(created)}</td>
+  </tr>`;
+}
+
+document.getElementById('monthPicker')?.addEventListener('change', function () {
+  loadMonthlyData(this.value);
+});
+
+document.getElementById('btnRefreshMonthly')?.addEventListener('click', function () {
+  const picker = document.getElementById('monthPicker');
+  if (picker) { loadMonthlyData(picker.value); }
+});

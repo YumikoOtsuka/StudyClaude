@@ -310,24 +310,24 @@
       <div class="flex justify-between items-center mb-16">
         <div class="flex gap-8 items-center">
           <input type="month" id="monthPicker" style="max-width:160px">
-          <button class="btn btn-secondary btn-sm">更新</button>
+          <button id="btnRefreshMonthly" class="btn btn-secondary btn-sm">更新</button>
         </div>
       </div>
 
       <div class="summary-cards">
         <div class="summary-card">
           <span class="sc-label">Slack 処理件数（月計）</span>
-          <span class="sc-value">86</span>
+          <span class="sc-value" id="monthlySlackCount">—</span>
           <span class="sc-sub">アプリ経由の処理数</span>
         </div>
         <div class="summary-card">
           <span class="sc-label">Backlog 起票件数（月計）</span>
-          <span class="sc-value">63</span>
+          <span class="sc-value" id="monthlyBacklogCount">—</span>
           <span class="sc-sub">Backlog API</span>
         </div>
         <div class="summary-card">
           <span class="sc-label">完了課題数</span>
-          <span class="sc-value" style="color:var(--success)">48</span>
+          <span class="sc-value" id="monthlyDoneCount" style="color:var(--success)">—</span>
           <span class="sc-sub">月内完了</span>
         </div>
       </div>
@@ -357,58 +357,11 @@
                 <th>プロジェクト</th>
                 <th>優先度</th>
                 <th>担当者</th>
-                <th>作成日</th>
+                <th>作成日時</th>
               </tr>
             </thead>
-            <tbody>
-              <tr>
-                <td><span class="issue-key">BLG-180</span></td>
-                <td>ユーザー招待フローの改善</td>
-                <td>Project A</td>
-                <td><span class="badge badge-high">高</span></td>
-                <td>自分</td>
-                <td>02/01</td>
-              </tr>
-              <tr>
-                <td><span class="issue-key">BLG-181</span></td>
-                <td>通知設定画面の追加</td>
-                <td>Project B</td>
-                <td><span class="badge badge-mid">普通</span></td>
-                <td>自分</td>
-                <td>02/03</td>
-              </tr>
-              <tr>
-                <td><span class="issue-key">BLG-182</span></td>
-                <td>API レート制限エラーのハンドリング</td>
-                <td>Project C</td>
-                <td><span class="badge badge-high">高</span></td>
-                <td>自分</td>
-                <td>02/05</td>
-              </tr>
-              <tr>
-                <td><span class="issue-key">BLG-183</span></td>
-                <td>検索フィルターの保持機能</td>
-                <td>Project A</td>
-                <td><span class="badge badge-low">低</span></td>
-                <td>自分</td>
-                <td>02/07</td>
-              </tr>
-              <tr>
-                <td><span class="issue-key">BLG-184</span></td>
-                <td>モバイル対応レイアウト調整</td>
-                <td>Project B</td>
-                <td><span class="badge badge-mid">普通</span></td>
-                <td>自分</td>
-                <td>02/10</td>
-              </tr>
-              <tr>
-                <td><span class="issue-key">BLG-205</span></td>
-                <td>ダッシュボードのレイアウト崩れ対応</td>
-                <td>Project A</td>
-                <td><span class="badge badge-mid">普通</span></td>
-                <td>自分</td>
-                <td>02/28</td>
-              </tr>
+            <tbody id="monthlyTableBody">
+              <tr><td colspan="6" style="text-align:center;color:var(--text-muted)">月を選択してください</td></tr>
             </tbody>
           </table>
         </div>
