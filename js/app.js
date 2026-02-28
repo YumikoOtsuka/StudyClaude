@@ -130,6 +130,12 @@ function skeletonRows(cols, count) {
 const SETTINGS_FIELDS = ['geminiApiKey', 'backlogSpace', 'backlogApiKey', 'backlogRepoName', 'backlogRemoteName'];
 
 function saveSettings() {
+  const spaceUrlEl = document.getElementById('backlogSpace');
+  if (spaceUrlEl && spaceUrlEl.value && !validateBacklogUrl(spaceUrlEl.value)) {
+    showToast('Backlog スペース URL は https://xxx.backlog.com 形式で入力してください', 'warning');
+    return;
+  }
+
   SETTINGS_FIELDS.forEach(id => {
     const el = document.getElementById(id);
     if (el) {localStorage.setItem(id, el.value);}
@@ -316,9 +322,17 @@ function handleFiles(files) {
 }
 
 
-/* ===== Slack URL バリデーション ===== */
+/* ===== バリデーション関数 ===== */
 function isValidSlackUrl(url) {
   return /^https:\/\/[a-zA-Z0-9-]+\.slack\.com\/archives\/[A-Z0-9]+\/p[0-9]+/.test(url);
+}
+
+function validateBacklogUrl(url) {
+  return /^https:\/\/[a-zA-Z0-9-]+\.backlog\.com\/?$/.test(url);
+}
+
+function validateIssueKey(key) {
+  return /^[A-Z][A-Z0-9_]+-[0-9]+$/.test(key);
 }
 
 
@@ -393,9 +407,16 @@ document.getElementById('btnRegister')?.addEventListener('click', async () => {
   const summary     = document.getElementById('issueTitle').value.trim();
   const issueTypeId = document.getElementById('issueType').value;
 
-  if (!projectId)   { showToast('プロジェクトを選択してください', 'warning');  return; }
-  if (!summary)     { showToast('課題タイトルを入力してください', 'warning');   return; }
-  if (!issueTypeId) { showToast('課題種別を選択してください', 'warning');       return; }
+  if (!projectId)          { showToast('プロジェクトを選択してください', 'warning');              return; }
+  if (!summary)            { showToast('課題タイトルを入力してください', 'warning');               return; }
+  if (summary.length > 255){ showToast('課題タイトルは 255 文字以内で入力してください', 'warning'); return; }
+  if (!issueTypeId)        { showToast('課題種別を選択してください', 'warning');                   return; }
+
+  const dueDate = document.getElementById('issueDue').value;
+  if (dueDate && dueDate < new Date().toISOString().slice(0, 10)) {
+    showToast('期限日は今日以降の日付を設定してください', 'warning');
+    return;
+  }
 
   const params = new URLSearchParams();
   params.append('projectId',   projectId);
@@ -406,7 +427,6 @@ document.getElementById('btnRegister')?.addEventListener('click', async () => {
   const description = document.getElementById('issueDesc').value;
   if (description) { params.append('description', description); }
 
-  const dueDate = document.getElementById('issueDue').value;
   if (dueDate) { params.append('dueDate', dueDate); }
 
   const assigneeId = document.getElementById('issueAssignee').value;
@@ -468,7 +488,11 @@ function generateGitCommands(branchName) {
 /* ===== コーディング準備 生成ボタン ===== */
 document.getElementById('btnCodingGen')?.addEventListener('click', async () => {
   const issueKey = document.getElementById('issueKey').value.trim().toUpperCase();
-  if (!issueKey) { showToast('Backlog 課題番号を入力してください', 'warning'); return; }
+  if (!issueKey) { showToast('課題キーを入力してください', 'warning'); return; }
+  if (!validateIssueKey(issueKey)) {
+    showToast('課題キーの形式が正しくありません（例: BLG-123）', 'warning');
+    return;
+  }
 
   const btn = document.getElementById('btnCodingGen');
   setButtonLoading(btn, true, '⏳ 生成中...');
