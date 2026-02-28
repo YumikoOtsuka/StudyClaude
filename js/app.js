@@ -61,7 +61,7 @@ function showToast(msg) {
 
 
 /* ===== Settings: save / load ===== */
-const SETTINGS_FIELDS = ['claudeApiKey', 'backlogSpace', 'backlogApiKey', 'defaultProject'];
+const SETTINGS_FIELDS = ['geminiApiKey', 'backlogSpace', 'backlogApiKey', 'defaultProject'];
 
 function saveSettings() {
   SETTINGS_FIELDS.forEach(id => {
