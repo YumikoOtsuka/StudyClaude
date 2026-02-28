@@ -1,5 +1,6 @@
 /* ===== Module-level state ===== */
 let backlogProjects = []; // プロジェクト一覧キャッシュ（loadBacklogProjects で設定）
+let dailyIssueData  = []; // 日次ダッシュボードの課題データ（CSV エクスポート用）
 
 
 /* ===== Navigation ===== */
@@ -524,15 +525,15 @@ document.getElementById('btnCodingGen')?.addEventListener('click', async () => {
 
 
 /* ===== CSV export ===== */
-function tableToCSV(tableId) {
-  const table = document.querySelector(`#${tableId} table`);
-  if (!table) {return '';}
-  const rows = Array.from(table.querySelectorAll('tr'));
-  return rows.map(row =>
-    Array.from(row.querySelectorAll('th, td'))
-      .map(cell => `"${cell.textContent.trim().replace(/"/g, '""')}"`)
-      .join(',')
-  ).join('\r\n');
+function formatDateTime(isoStr) {
+  if (!isoStr) { return ''; }
+  const d = new Date(isoStr);
+  const pad = function (n) { return String(n).padStart(2, '0'); };
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function csvEscape(val) {
+  return `"${String(val === null || val === undefined ? '' : val).replace(/"/g, '""')}"`;
 }
 
 function downloadCSV(csv, filename) {
@@ -547,10 +548,27 @@ function downloadCSV(csv, filename) {
 }
 
 document.getElementById('btnExportDailyCsv')?.addEventListener('click', () => {
-  const today = new Date().toISOString().slice(0, 10);
-  const csv = tableToCSV('daily');
-  if (!csv) { showToast('エクスポートするデータがありません'); return; }
-  downloadCSV(csv, `backlog_daily_${today}.csv`);
+  if (dailyIssueData.length === 0) { showToast('エクスポートするデータがありません'); return; }
+
+  const headers = ['課題番号', 'タイトル', 'プロジェクト', '優先度', '担当者', '作成日時', 'ステータス'];
+  const rows = dailyIssueData.map(function (issue) {
+    const project     = backlogProjects.find(function (p) { return p.id === issue.projectId; });
+    const projectName = project ? project.name : String(issue.projectId || '');
+    return [
+      issue.issueKey,
+      issue.summary,
+      projectName,
+      issue.priority  ? issue.priority.name  : '',
+      issue.assignee  ? issue.assignee.name  : '',
+      formatDateTime(issue.created),
+      issue.status    ? issue.status.name    : '',
+    ].map(csvEscape).join(',');
+  });
+
+  const csv = [headers.map(csvEscape).join(',')].concat(rows).join('\r\n');
+  const dateInput = document.getElementById('dailyDate');
+  const dateStr   = dateInput ? dateInput.value : new Date().toISOString().slice(0, 10);
+  downloadCSV(csv, `backlog_daily_${dateStr}.csv`);
   showToast('CSV をダウンロードしました');
 });
 
@@ -594,6 +612,7 @@ async function loadDailyData(dateStr) {
     if (defaultProject) { params.projectId = [Number(defaultProject)]; }
 
     const issues = await BacklogAPI.getIssues(params);
+    dailyIssueData = issues;
 
     if (backlogEl)    { backlogEl.textContent    = issues.length; }
     if (incompleteEl) {
