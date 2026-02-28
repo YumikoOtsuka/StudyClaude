@@ -20,8 +20,48 @@ function navigate(screenId) {
     document.querySelector('.topbar-sub').textContent   = meta.sub;
   }
 
+  showApiBanner(screenId);
+
   // Draw charts when monthly screen becomes visible
   if (screenId === 'monthly') {initMonthlyCharts();}
+}
+
+function showApiBanner(screenId) {
+  const banner = document.getElementById('apiBanner');
+  const msgEl  = document.getElementById('apiBannerMsg');
+  if (!banner || !msgEl) { return; }
+
+  const geminiKey  = localStorage.getItem('geminiApiKey')  || '';
+  const spaceUrl   = localStorage.getItem('backlogSpace')  || '';
+  const backlogKey = localStorage.getItem('backlogApiKey') || '';
+
+  const needsGemini  = screenId === 'slack2backlog' || screenId === 'coding';
+  const needsBacklog = screenId === 'slack2backlog' || screenId === 'coding' ||
+                       screenId === 'daily'          || screenId === 'monthly';
+
+  let warning = '';
+  if (needsGemini && needsBacklog) {
+    const missingGemini  = !geminiKey;
+    const missingBacklog = !spaceUrl || !backlogKey;
+    if (missingGemini && missingBacklog) {
+      warning = '⚠️ Gemini API キーと Backlog API キーが未設定です。';
+    } else if (missingGemini) {
+      warning = '⚠️ Gemini API キーが未設定です。';
+    } else if (missingBacklog) {
+      warning = '⚠️ Backlog API キーが未設定です。';
+    }
+  } else if (needsBacklog) {
+    if (!spaceUrl || !backlogKey) {
+      warning = '⚠️ Backlog API キーが未設定です。';
+    }
+  }
+
+  if (warning) {
+    msgEl.textContent     = warning + ' ';
+    banner.style.display  = 'flex';
+  } else {
+    banner.style.display  = 'none';
+  }
 }
 
 NAV_ITEMS.forEach(item => {
@@ -61,14 +101,20 @@ function showToast(msg) {
 
 
 /* ===== Settings: save / load ===== */
-const SETTINGS_FIELDS = ['geminiApiKey', 'backlogSpace', 'backlogApiKey', 'defaultProject'];
+const SETTINGS_FIELDS = ['geminiApiKey', 'backlogSpace', 'backlogApiKey'];
 
 function saveSettings() {
   SETTINGS_FIELDS.forEach(id => {
     const el = document.getElementById(id);
     if (el) {localStorage.setItem(id, el.value);}
   });
+  // defaultProject を保存（選択済みの場合のみ上書き）
+  const projectSel = document.getElementById('defaultProject');
+  if (projectSel && projectSel.value) {
+    localStorage.setItem('defaultProject', projectSel.value);
+  }
   showToast('設定を保存しました');
+  loadBacklogProjects();
 }
 
 function loadSettings() {
@@ -76,9 +122,55 @@ function loadSettings() {
     const el = document.getElementById(id);
     if (el) {el.value = localStorage.getItem(id) || '';}
   });
+  loadBacklogProjects();
+}
+
+async function loadBacklogProjects() {
+  const select = document.getElementById('defaultProject');
+  if (!select) { return; }
+
+  const spaceUrl  = localStorage.getItem('backlogSpace')  || '';
+  const backlogKey = localStorage.getItem('backlogApiKey') || '';
+  if (!spaceUrl || !backlogKey) { return; }
+
+  try {
+    const projects = await BacklogAPI.getProjects();
+    const savedId  = localStorage.getItem('defaultProject') || '';
+    select.innerHTML = '<option value="">選択してください</option>';
+    projects.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value       = p.id;
+      opt.textContent = `[${p.projectKey}] ${p.name}`;
+      select.appendChild(opt);
+    });
+    if (savedId) { select.value = savedId; }
+  } catch (err) {
+    console.log('Backlog プロジェクト取得失敗:', err.message);
+  }
 }
 
 document.getElementById('saveSettings')?.addEventListener('click', saveSettings);
+
+document.getElementById('testConnection')?.addEventListener('click', async () => {
+  const geminiKey = localStorage.getItem('geminiApiKey') || '';
+  try {
+    const projects = await BacklogAPI.getProjects();
+    showToast(`✓ Backlog 接続成功: ${projects.length} プロジェクト取得`);
+  } catch (err) {
+    showToast(`✗ Backlog 接続エラー: ${err.message}`);
+  }
+  if (geminiKey) {
+    showToast('✓ Gemini API キー設定済み');
+  } else {
+    showToast('✗ Gemini API キーが未設定です');
+  }
+});
+
+document.getElementById('apiBannerLink')?.addEventListener('click', e => {
+  e.preventDefault();
+  navigate('settings');
+});
+
 loadSettings();
 
 

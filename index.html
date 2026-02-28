@@ -55,6 +55,12 @@
     </div>
   </header>
 
+  <!-- API キー未設定時の警告バナー -->
+  <div id="apiBanner" class="api-warning-banner" style="display:none">
+    <span id="apiBannerMsg"></span>
+    <a href="#" id="apiBannerLink" class="api-warning-link">設定画面へ</a>
+  </div>
+
   <div class="content">
 
     <!-- ========================================
@@ -468,7 +474,7 @@
 
         <div class="btn-row">
           <button class="btn btn-primary" id="saveSettings">💾 保存</button>
-          <button class="btn btn-secondary">接続テスト</button>
+          <button class="btn btn-secondary" id="testConnection">接続テスト</button>
         </div>
 
         <p class="text-muted mt-8">※ API キーはこのブラウザの localStorage にのみ保存されます。外部には送信されません。</p>
