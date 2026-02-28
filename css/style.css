@@ -419,6 +419,25 @@ hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
 
 @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
+/* ===== API Warning Banner ===== */
+.api-warning-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: #fef3c7;
+  border-bottom: 1px solid #fde68a;
+  color: #92400e;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.api-warning-link {
+  color: #92400e;
+  font-weight: 600;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
 /* ===== Misc ===== */
 .text-muted { color: var(--text-muted); font-size: 12px; }
 .mt-4 { margin-top: 4px; }
