@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>業務効率化ツール</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ===== Sidebar ===== -->
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <h1>業務効率化ツール</h1>
+    <p>Slack → Backlog → Git</p>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section">メイン機能</div>
+    <div class="nav-item" data-screen="slack2backlog">
+      <span class="icon">💬</span>
+      <span class="label">Slack → Backlog</span>
+    </div>
+    <div class="nav-item" data-screen="coding">
+      <span class="icon">⚙️</span>
+      <span class="label">コーディング準備</span>
+    </div>
+
+    <div class="nav-section">分析</div>
+    <div class="nav-item" data-screen="daily">
+      <span class="icon">📅</span>
+      <span class="label">日次ダッシュボード</span>
+    </div>
+    <div class="nav-item" data-screen="monthly">
+      <span class="icon">📊</span>
+      <span class="label">月次ダッシュボード</span>
+    </div>
+
+    <div class="nav-section">その他</div>
+    <div class="nav-item" data-screen="settings">
+      <span class="icon">🔧</span>
+      <span class="label">設定</span>
+    </div>
+  </nav>
+</aside>
+
+<!-- ===== Main ===== -->
+<div class="main">
+  <header class="topbar">
+    <div>
+      <div class="topbar-title">—</div>
+      <div class="topbar-sub">—</div>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- ========================================
+         画面1: Slack → Backlog 変換
+         ======================================== -->
+    <div id="slack2backlog" class="screen">
+      <div class="two-col">
+
+        <!-- 左: 入力 -->
+        <div>
+          <div class="card section">
+            <div class="card-title">Slack 依頼内容</div>
+
+            <div class="form-group">
+              <label>Slack 投稿 URL</label>
+              <input type="text" id="slackUrl" placeholder="https://yourworkspace.slack.com/archives/C.../p...">
+            </div>
+
+            <div class="form-group">
+              <label>Slack メッセージ（テキスト貼り付け）</label>
+              <textarea id="slackText" rows="6" placeholder="Slack のメッセージをここに貼り付けてください…"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>添付画像（Claude Vision で解析）</label>
+              <div class="dropzone" id="dropzone">
+                <div class="dz-icon">🖼️</div>
+                <div>クリックまたはドラッグ＆ドロップで画像を追加</div>
+                <div class="dz-hint">PNG / JPG / GIF 対応</div>
+              </div>
+              <input type="file" id="imageInput" accept="image/*" multiple style="display:none">
+              <div class="image-preview-list" id="imagePreviewList"></div>
+            </div>
+
+            <button class="btn btn-primary" id="btnGenerate">
+              ✨ AI で課題を生成
+            </button>
+          </div>
+        </div>
+
+        <!-- 右: 生成結果フォーム -->
+        <div>
+          <div class="card section">
+            <div class="card-title">Backlog 課題（編集可能）</div>
+
+            <div class="form-group">
+              <label>プロジェクト</label>
+              <select id="issueProject">
+                <option value="">— プロジェクトを選択 —</option>
+                <option>Project A</option>
+                <option>Project B</option>
+                <option>Project C</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>課題タイトル</label>
+              <input type="text" id="issueTitle" placeholder="AI が生成したタイトル">
+            </div>
+
+            <div class="form-group">
+              <label>説明</label>
+              <textarea id="issueDesc" rows="6" placeholder="AI が生成した説明文"></textarea>
+            </div>
+
+            <div class="two-col">
+              <div class="form-group">
+                <label>担当者</label>
+                <select id="issueAssignee">
+                  <option value="">— 担当者 —</option>
+                  <option>自分</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>期限</label>
+                <input type="date" id="issueDue">
+              </div>
+            </div>
+
+            <div class="two-col">
+              <div class="form-group">
+                <label>優先度</label>
+                <select id="issuePriority">
+                  <option>普通</option>
+                  <option>高</option>
+                  <option>最高</option>
+                  <option>低</option>
+                  <option>最低</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>カテゴリ</label>
+                <select id="issueCategory">
+                  <option value="">— カテゴリ —</option>
+                  <option>機能追加</option>
+                  <option>バグ修正</option>
+                  <option>調査</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="btn-row">
+              <button class="btn btn-success" id="btnRegister">
+                📋 Backlog に登録
+              </button>
+              <button class="btn btn-secondary">クリア</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /slack2backlog -->
+
+
+    <!-- ========================================
+         画面2: コーディング準備
+         ======================================== -->
+    <div id="coding" class="screen">
+
+      <div class="card section">
+        <div class="card-title">Backlog 課題を入力</div>
+        <div class="flex gap-8 items-center">
+          <input type="text" id="issueKey" placeholder="例: BLG-123" style="max-width:180px">
+          <button class="btn btn-primary" id="btnCodingGen">⚙️ 生成</button>
+        </div>
+        <p class="text-muted mt-8">課題番号を入力すると Backlog API から内容を取得し、コーディング準備情報を生成します。</p>
+      </div>
+
+      <div id="codingOutput" style="display:none">
+
+        <div class="card section">
+          <div class="card-title">タスク分解</div>
+          <div class="output-block">
+            <pre id="outTasks"></pre>
+          </div>
+        </div>
+
+        <div class="card section">
+          <div class="card-title">Git 操作</div>
+
+          <div class="output-block">
+            <div class="output-block-header">
+              <span class="output-block-title">🌿 ブランチ名</span>
+              <button class="btn btn-secondary btn-sm" data-copy="#outBranch">コピー</button>
+            </div>
+            <pre id="outBranch"></pre>
+          </div>
+
+          <div class="output-block">
+            <div class="output-block-header">
+              <span class="output-block-title">💬 コミットメッセージ</span>
+              <button class="btn btn-secondary btn-sm" data-copy="#outCommit">コピー</button>
+            </div>
+            <pre id="outCommit"></pre>
+          </div>
+
+          <div class="output-block">
+            <div class="output-block-header">
+              <span class="output-block-title">🚀 Push コマンド</span>
+              <button class="btn btn-secondary btn-sm" data-copy="#outPush">コピー</button>
+            </div>
+            <pre id="outPush"></pre>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /coding -->
+
+
+    <!-- ========================================
+         画面3: 分析（日次）
+         ======================================== -->
+    <div id="daily" class="screen">
+
+      <div class="flex justify-between items-center mb-16">
+        <div class="flex gap-8 items-center">
+          <input type="date" id="dailyDate" style="max-width:160px">
+          <button class="btn btn-secondary btn-sm">更新</button>
+        </div>
+      </div>
+
+      <div class="summary-cards">
+        <div class="summary-card">
+          <span class="sc-label">Slack 処理件数</span>
+          <span class="sc-value">7</span>
+          <span class="sc-sub">本日（アプリ経由）</span>
+        </div>
+        <div class="summary-card">
+          <span class="sc-label">Backlog 起票件数</span>
+          <span class="sc-value">5</span>
+          <span class="sc-sub">本日（Backlog API）</span>
+        </div>
+        <div class="summary-card">
+          <span class="sc-label">未完了課題</span>
+          <span class="sc-value" style="color:var(--warning)">3</span>
+          <span class="sc-sub">本日起票分</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="flex justify-between items-center mb-16">
+          <span class="card-title" style="margin-bottom:0">本日の起票一覧</span>
+          <button class="btn btn-secondary btn-sm" id="btnExportDailyCsv">⬇ CSV 出力</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>課題番号</th>
+                <th>タイトル</th>
+                <th>プロジェクト</th>
+                <th>優先度</th>
+                <th>担当者</th>
+                <th>作成日時</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="issue-key">BLG-201</span></td>
+                <td>ログイン画面のバリデーション修正</td>
+                <td>Project A</td>
+                <td><span class="badge badge-high">高</span></td>
+                <td>自分</td>
+                <td>09:12</td>
+              </tr>
+              <tr>
+                <td><span class="issue-key">BLG-202</span></td>
+                <td>CSV エクスポート機能の追加</td>
+                <td>Project B</td>
+                <td><span class="badge badge-mid">普通</span></td>
+                <td>自分</td>
+                <td>10:45</td>
+              </tr>
+              <tr>
+                <td><span class="issue-key">BLG-203</span></td>
+                <td>パスワードリセットメールの文言変更</td>
+                <td>Project A</td>
+                <td><span class="badge badge-low">低</span></td>
+                <td>自分</td>
+                <td>13:30</td>
+              </tr>
+              <tr>
+                <td><span class="issue-key">BLG-204</span></td>
+                <td>レポート集計ロジックの見直し</td>
+                <td>Project C</td>
+                <td><span class="badge badge-high">高</span></td>
+                <td>自分</td>
+                <td>14:08</td>
+              </tr>
+              <tr>
+                <td><span class="issue-key">BLG-205</span></td>
+                <td>ダッシュボードのレイアウト崩れ対応</td>
+                <td>Project A</td>
+                <td><span class="badge badge-mid">普通</span></td>
+                <td>自分</td>
+                <td>16:22</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /daily -->
+
+
+    <!-- ========================================
+         画面4: 分析（月次）
+         ======================================== -->
+    <div id="monthly" class="screen">
+
+      <div class="flex justify-between items-center mb-16">
+        <div class="flex gap-8 items-center">
+          <input type="month" id="monthPicker" style="max-width:160px">
+          <button class="btn btn-secondary btn-sm">更新</button>
+        </div>
+      </div>
+
+      <div class="summary-cards">
+        <div class="summary-card">
+          <span class="sc-label">Slack 処理件数（月計）</span>
+          <span class="sc-value">86</span>
+          <span class="sc-sub">アプリ経由の処理数</span>
+        </div>
+        <div class="summary-card">
+          <span class="sc-label">Backlog 起票件数（月計）</span>
+          <span class="sc-value">63</span>
+          <span class="sc-sub">Backlog API</span>
+        </div>
+        <div class="summary-card">
+          <span class="sc-label">完了課題数</span>
+          <span class="sc-value" style="color:var(--success)">48</span>
+          <span class="sc-sub">月内完了</span>
+        </div>
+      </div>
+
+      <div class="chart-grid">
+        <!-- Bar chart -->
+        <div class="chart-box">
+          <div class="card-title" style="margin-bottom:16px">日別 Backlog 起票件数</div>
+          <canvas id="chartBar" height="180"></canvas>
+        </div>
+
+        <!-- Pie chart -->
+        <div class="chart-box">
+          <div class="card-title" style="margin-bottom:16px">プロジェクト別内訳</div>
+          <canvas id="chartPie" height="180"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">月間 起票一覧</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>課題番号</th>
+                <th>タイトル</th>
+                <th>プロジェクト</th>
+                <th>優先度</th>
+                <th>担当者</th>
+                <th>作成日</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="issue-key">BLG-180</span></td>
+                <td>ユーザー招待フローの改善</td>
+                <td>Project A</td>
+                <td><span class="badge badge-high">高</span></td>
+                <td>自分</td>
+                <td>02/01</td>
+              </tr>
+              <tr>
+                <td><span class="issue-key">BLG-181</span></td>
+                <td>通知設定画面の追加</td>
+                <td>Project B</td>
+                <td><span class="badge badge-mid">普通</span></td>
+                <td>自分</td>
+                <td>02/03</td>
+              </tr>
+              <tr>
+                <td><span class="issue-key">BLG-182</span></td>
+                <td>API レート制限エラーのハンドリング</td>
+                <td>Project C</td>
+                <td><span class="badge badge-high">高</span></td>
+                <td>自分</td>
+                <td>02/05</td>
+              </tr>
+              <tr>
+                <td><span class="issue-key">BLG-183</span></td>
+                <td>検索フィルターの保持機能</td>
+                <td>Project A</td>
+                <td><span class="badge badge-low">低</span></td>
+                <td>自分</td>
+                <td>02/07</td>
+              </tr>
+              <tr>
+                <td><span class="issue-key">BLG-184</span></td>
+                <td>モバイル対応レイアウト調整</td>
+                <td>Project B</td>
+                <td><span class="badge badge-mid">普通</span></td>
+                <td>自分</td>
+                <td>02/10</td>
+              </tr>
+              <tr>
+                <td><span class="issue-key">BLG-205</span></td>
+                <td>ダッシュボードのレイアウト崩れ対応</td>
+                <td>Project A</td>
+                <td><span class="badge badge-mid">普通</span></td>
+                <td>自分</td>
+                <td>02/28</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /monthly -->
+
+
+    <!-- ========================================
+         画面5: 設定
+         ======================================== -->
+    <div id="settings" class="screen">
+      <div class="card" style="max-width:560px">
+        <div class="card-title">API 接続設定</div>
+
+        <div class="form-group">
+          <label>Claude API キー</label>
+          <input type="password" id="claudeApiKey" placeholder="sk-ant-…">
+        </div>
+
+        <hr>
+
+        <div class="form-group">
+          <label>Backlog スペース URL</label>
+          <input type="text" id="backlogSpace" placeholder="https://yourspace.backlog.com">
+        </div>
+
+        <div class="form-group">
+          <label>Backlog API キー</label>
+          <input type="password" id="backlogApiKey" placeholder="Backlog API キー">
+        </div>
+
+        <div class="form-group">
+          <label>デフォルトプロジェクト</label>
+          <select id="defaultProject">
+            <option value="">— 設定後に読み込まれます —</option>
+          </select>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" id="saveSettings">💾 保存</button>
+          <button class="btn btn-secondary">接続テスト</button>
+        </div>
+
+        <p class="text-muted mt-8">※ API キーはこのブラウザの localStorage にのみ保存されます。外部には送信されません。</p>
+      </div>
+    </div><!-- /settings -->
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- Toast area -->
+<div class="toast-area" id="toastArea"></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
