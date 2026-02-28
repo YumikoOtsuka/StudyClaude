@@ -105,7 +105,7 @@ function showToast(msg) {
 
 
 /* ===== Settings: save / load ===== */
-const SETTINGS_FIELDS = ['geminiApiKey', 'backlogSpace', 'backlogApiKey'];
+const SETTINGS_FIELDS = ['geminiApiKey', 'backlogSpace', 'backlogApiKey', 'backlogRepoName', 'backlogRemoteName'];
 
 function saveSettings() {
   SETTINGS_FIELDS.forEach(id => {
@@ -165,6 +165,8 @@ async function loadBacklogProjects() {
       });
       if (savedId) {
         issueSelect.value = savedId;
+        const savedProject = projects.find(function (p) { return String(p.id) === String(savedId); });
+        if (savedProject) { localStorage.setItem('defaultProjectKey', savedProject.projectKey); }
         loadProjectDetails(savedId);
       }
     }
@@ -426,6 +428,27 @@ document.getElementById('btnRegister')?.addEventListener('click', async () => {
 });
 
 
+/* ===== Git コマンド生成 ===== */
+function generateGitCommands(branchName) {
+  const spaceUrl   = localStorage.getItem('backlogSpace')       || '';
+  const repoName   = localStorage.getItem('backlogRepoName')    || '';
+  const projectKey = localStorage.getItem('defaultProjectKey')  || '';
+  const remoteName = localStorage.getItem('backlogRemoteName')  || 'origin';
+
+  const checkout = `git checkout -b ${branchName}`;
+  let addRemote  = '';
+  const push     = `git push ${remoteName} ${branchName}`;
+
+  if (spaceUrl && repoName && projectKey) {
+    const spaceId  = spaceUrl.replace('https://', '').replace('.backlog.com', '').replace(/\/$/, '');
+    const remoteUrl = `https://${spaceId}.git.backlog.com/${projectKey}/${repoName}.git`;
+    addRemote = `git remote add ${remoteName} ${remoteUrl}`;
+  }
+
+  return { checkout, addRemote, push };
+}
+
+
 /* ===== コーディング準備 生成ボタン ===== */
 document.getElementById('btnCodingGen')?.addEventListener('click', async () => {
   const issueKey = document.getElementById('issueKey').value.trim().toUpperCase();
@@ -472,12 +495,22 @@ document.getElementById('btnCodingGen')?.addEventListener('click', async () => {
       commitMessage = `[${issueKey}] 機能実装`;
     }
 
-    const pushCmd = `git push origin ${branchName}`;
+    const cmds = generateGitCommands(branchName);
 
-    document.getElementById('outTasks').textContent  = tasks.map(function (t, i) { return `${i + 1}. ${t}`; }).join('\n');
-    document.getElementById('outBranch').textContent = branchName;
-    document.getElementById('outCommit').textContent = commitMessage;
-    document.getElementById('outPush').textContent   = pushCmd;
+    document.getElementById('outTasks').textContent    = tasks.map(function (t, i) { return `${i + 1}. ${t}`; }).join('\n');
+    document.getElementById('outCheckout').textContent = cmds.checkout;
+    document.getElementById('outBranch').textContent   = branchName;
+    document.getElementById('outCommit').textContent   = commitMessage;
+    document.getElementById('outPush').textContent     = cmds.push;
+
+    const remoteBlock = document.getElementById('outAddRemoteBlock');
+    if (cmds.addRemote) {
+      document.getElementById('outAddRemote').textContent = cmds.addRemote;
+      if (remoteBlock) { remoteBlock.style.display = 'block'; }
+    } else {
+      if (remoteBlock) { remoteBlock.style.display = 'none'; }
+    }
+
     document.getElementById('codingOutput').style.display = 'block';
     showToast('コーディング準備情報を生成しました');
   } catch (err) {
